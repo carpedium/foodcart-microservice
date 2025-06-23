@@ -3,7 +3,11 @@ kind: Service
 metadata:
   name: keycloak
 spec:
-  ports:
-    - port: 8080
+  type: NodePort
   selector:
     app: keycloak
+  ports:
+    - protocol: TCP
+      port: 8080
+      targetPort: 8080
+      nodePort: 31337  # Optional, else assigned automatically

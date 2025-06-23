@@ -3,7 +3,10 @@ kind: Service
 metadata:
   name: postgres
 spec:
-  ports:
-    - port: 5432
+  type: NodePort
   selector:
     app: postgres
+  ports:
+    - port: 5432           # Internal Cluster Port
+      targetPort: 5432     # Container Port
+      nodePort: 30032      # External Port on host (must be between 30000-32767)

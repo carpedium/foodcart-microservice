@@ -1,0 +1,75 @@
+# 1. PersistentVolume: Defines physical storage on host machine for Oracle DB data
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: oracle-pv
+spec:
+  capacity:
+    storage: 300Mi                    # Size of volume requested
+  accessModes:
+    - ReadWriteOnce                  # Only one node can mount volume for read/write
+  storageClassName: hostpath         # Storage class name, must match PVC
+  hostPath:
+    path: /run/desktop/mnt/host/c/Users/ankit/k8s-volumes/oracle-data  # Local host directory mounted as PV
+  persistentVolumeReclaimPolicy: Retain   # Keep data on PV after PVC deletion (manual cleanup required)
+---
+# 2. PersistentVolumeClaim: Claims the above PV for use by pods
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: oracle-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce                # Must match PV's access mode
+  resources:
+    requests:
+      storage: 300Mi              # Request same size as PV
+  storageClassName: hostpath       # Must match PV's storageClassName
+  volumeName: oracle-pv            # Explicitly bind this PVC to oracle-pv
+---
+# 3. Oracle DB Deployment: Runs Oracle XE container with persistent storage
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oracle-db
+spec:
+  replicas: 1                      # One instance of Oracle DB pod
+  selector:
+    matchLabels:
+      app: oracle-db              # Select pods with this label
+  template:
+    metadata:
+      labels:
+        app: oracle-db            # Label for pod template
+    spec:
+      containers:
+        - name: oracle
+          image: gvenzl/oracle-xe:21-slim     # Oracle XE 21 slim image from gvenzl
+          imagePullPolicy: IfNotPresent        # Pull image only if not present locally
+          ports:
+            - containerPort: 1521               # Oracle listener port
+          env:
+            - name: ORACLE_PASSWORD             # Environment variable for SYS, SYSTEM & PDBADMIN password
+              value: Welcome123
+          volumeMounts:
+            - mountPath: /opt/oracle/oradata    # Directory inside container where DB data is stored
+              name: oracle-data                 # Reference to volume defined below
+      volumes:
+        - name: oracle-data
+          persistentVolumeClaim:
+            claimName: oracle-pvc               # Bind volume to the PVC
+---
+# 4. Service: Expose Oracle DB on node port to access externally
+apiVersion: v1
+kind: Service
+metadata:
+  name: oracle-db
+spec:
+  type: NodePort                            # Expose service on a port on each node's IP
+  selector:
+    app: oracle-db                         # Select pods with this label to route traffic
+  ports:
+    - name: oracle-listener                # Name for this port
+      port: 1521                          # Port exposed inside the cluster (Service port)
+      targetPort: 1521                    # Port on the pod (container port)
+      nodePort: 31521                     # Port exposed on node IP (Windows host)
