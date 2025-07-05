@@ -1,3 +1,4 @@
+# postgres-pv.yaml
 apiVersion: v1
 kind: PersistentVolume
 metadata:
@@ -8,9 +9,11 @@ spec:
   accessModes:
     - ReadWriteOnce
   hostPath:
-    path: /run/desktop/mnt/host/c/Users/<your-username>/k8s-volumes/postgres-data
+    path: /run/desktop/mnt/host/c/Users/ankit/k8s-volumes/postgres-data
   persistentVolumeReclaimPolicy: Retain
+  storageClassName: ""  # Important for manual binding
 ---
+# postgres-pvc.yaml
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -21,4 +24,5 @@ spec:
   resources:
     requests:
       storage: 50Mi
-  volumeName: postgres-pv  # explicitly binds to the above PV
+  volumeName: postgres-pv
+  storageClassName: ""  # Must match the PV's

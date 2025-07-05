@@ -5,7 +5,7 @@ metadata:
   name: oracle-pv
 spec:
   capacity:
-    storage: 300Mi                    # Size of volume requested
+    storage: 200Mi                    # Size of volume requested
   accessModes:
     - ReadWriteOnce                  # Only one node can mount volume for read/write
   storageClassName: hostpath         # Storage class name, must match PVC
@@ -23,7 +23,7 @@ spec:
     - ReadWriteOnce                # Must match PV's access mode
   resources:
     requests:
-      storage: 300Mi              # Request same size as PV
+      storage: 200Mi              # Request same size as PV
   storageClassName: hostpath       # Must match PV's storageClassName
   volumeName: oracle-pv            # Explicitly bind this PVC to oracle-pv
 ---
