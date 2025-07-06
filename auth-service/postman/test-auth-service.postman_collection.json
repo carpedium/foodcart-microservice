@@ -1,0 +1,143 @@
+{
+	"info": {
+		"_postman_id": "39cf1c01-d180-4c28-aadd-d80c5d870b68",
+		"name": "test-auth-service",
+		"description": "Postman collection to test auth-service endpoints and Keycloak token flows",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "21495607"
+	},
+	"item": [
+		{
+			"name": "Register User",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"username\": \"xankit\",\n  \"email\": \"xankit@test.com\",\n  \"password\": \"xankit123\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:8081/auth/register",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8081",
+					"path": [
+						"auth",
+						"register"
+					]
+				},
+				"description": "Register a new user in Keycloak via auth-service"
+			},
+			"response": []
+		},
+		{
+			"name": "Login - Get Token from Keycloak",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/x-www-form-urlencoded"
+					}
+				],
+				"url": {
+					"raw": "http://localhost:31337/realms/foodcart-realm/protocol/openid-connect/token",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "31337",
+					"path": [
+						"realms",
+						"foodcart-realm",
+						"protocol",
+						"openid-connect",
+						"token"
+					]
+				},
+				"description": "Manually test password grant via Keycloak token endpoint"
+			},
+			"response": []
+		},
+		{
+			"name": "Secure Endpoint Access (Requires Token)",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer <paste-token-here>"
+					}
+				],
+				"url": {
+					"raw": "http://localhost:8081/api/secure",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8081",
+					"path": [
+						"api",
+						"secure"
+					]
+				},
+				"description": "Access a secure endpoint using a valid JWT"
+			},
+			"response": []
+		},
+		{
+			"name": "Swagger UI Access (Public)",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8081/swagger-ui/index.html",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8081",
+					"path": [
+						"swagger-ui",
+						"index.html"
+					]
+				},
+				"description": "Access Swagger UI without authentication"
+			},
+			"response": []
+		},
+		{
+			"name": "Actuator Health (Public)",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8081/actuator/health",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8081",
+					"path": [
+						"actuator",
+						"health"
+					]
+				},
+				"description": "Spring Boot health check (should be public)"
+			},
+			"response": []
+		}
+	]
+}

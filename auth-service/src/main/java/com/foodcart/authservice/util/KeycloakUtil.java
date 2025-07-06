@@ -76,7 +76,10 @@ public class KeycloakUtil {
 		// Create user object
 		UserRepresentation user = new UserRepresentation();
 		user.setUsername(req.getUsername());
+		user.setFirstName(req.getUsername());
+		user.setLastName("last_"+req.getUsername());
 		user.setEmail(req.getEmail());
+		user.setEmailVerified(true);
 		user.setEnabled(true);
 
 		// Set credentials
@@ -89,8 +92,10 @@ public class KeycloakUtil {
 
 		// Make API call to create the user
 		var response = keycloak.realm(realm).users().create(user);
-		int status = 201;
+		int status = response.getStatus();
 
+		log.info("status : " + status);
+		
 		if (status == 201) {
 			return true;
 		} else if (status == 409) {
