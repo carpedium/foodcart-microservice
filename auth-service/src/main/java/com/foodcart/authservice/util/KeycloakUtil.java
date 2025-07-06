@@ -25,132 +25,144 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.foodcart.authservice.dto.AuthResDto;
 import com.foodcart.authservice.dto.LoginReqDto;
 import com.foodcart.authservice.dto.RegisterReqDto;
+import com.foodcart.authservice.exception.UserAlreadyExistsException;
+import com.foodcart.authservice.exception.UserCreationException;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
-* Utility class to interact with Keycloak:
-* - Create new users using Admin API
-* - Obtain access/refresh tokens using Password Grant
-*/
+ * Utility class to interact with Keycloak: - Create new users using Admin API -
+ * Obtain access/refresh tokens using Password Grant
+ */
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class KeycloakUtil {
 
- // Configuration properties from application.properties
- @Value("${keycloak.server-url}")
- private String serverUrl;
+	// Configuration properties from application.properties
+	@Value("${keycloak.server-url}")
+	private String serverUrl;
 
- @Value("${keycloak.realm}")
- private String realm;
+	@Value("${keycloak.realm}")
+	private String realm;
 
- @Value("${keycloak.client-id}")
- private String clientId;
+	@Value("${keycloak.client-id}")
+	private String clientId;
 
- @Value("${keycloak.client-secret}")
- private String clientSecret;
+	@Value("${keycloak.client-secret}")
+	private String clientSecret;
 
- @Value("${keycloak.admin-username}")
- private String adminUsername;
+	@Value("${keycloak.admin-username}")
+	private String adminUsername;
 
- @Value("${keycloak.admin-password}")
- private String adminPassword;
+	@Value("${keycloak.admin-password}")
+	private String adminPassword;
 
- private final ObjectMapper mapper = new ObjectMapper();
+	private final ObjectMapper mapper = new ObjectMapper();
 
- /**
-  * Registers a new user in Keycloak using admin credentials.
-  * @param req RegisterReqDto containing username/email/password
-  * @return true if user created successfully
-  */
- public boolean createUser(RegisterReqDto req) {
-     try {
-         Keycloak keycloak = KeycloakBuilder.builder()
-                 .serverUrl(serverUrl)
-                 .realm("master")  // Admin realm
-                 .grantType(OAuth2Constants.PASSWORD)
-                 .clientId("admin-cli")
-                 .username(adminUsername)
-                 .password(adminPassword)
-                 .build();
+	/**
+	 * Registers a new user in Keycloak using admin credentials.
+	 * 
+	 * @param req RegisterReqDto containing username/email/password
+	 * @return true if user created successfully
+	 */
+	public boolean createUser(RegisterReqDto req) {
 
-         // Create user object
-         UserRepresentation user = new UserRepresentation();
-         user.setUsername(req.getUsername());
-         user.setEmail(req.getEmail());
-         user.setEnabled(true);
+		Keycloak keycloak = KeycloakBuilder.builder().serverUrl(serverUrl).realm("master") // Admin realm
+				.grantType(OAuth2Constants.PASSWORD).clientId("admin-cli").username(adminUsername)
+				.password(adminPassword).build();
 
-         // Set credentials
-         CredentialRepresentation credential = new CredentialRepresentation();
-         credential.setType(CredentialRepresentation.PASSWORD);
-         credential.setValue(req.getPassword());
-         credential.setTemporary(false);
-         user.setCredentials(List.of(credential));
+		// Create user object
+		UserRepresentation user = new UserRepresentation();
+		user.setUsername(req.getUsername());
+		user.setEmail(req.getEmail());
+		user.setEnabled(true);
 
-         // Make API call to create the user
-         var response = keycloak.realm(realm).users().create(user);
-         return response.getStatus() == 201;
-     } catch (Exception e) {
-         log.error("Failed to create user in Keycloak", e);
-         return false;
-     }
- }
+		// Set credentials
+		CredentialRepresentation credential = new CredentialRepresentation();
+		credential.setType(CredentialRepresentation.PASSWORD);
+		credential.setValue(req.getPassword());
+		credential.setTemporary(false);
+		
+		user.setCredentials(List.of(credential));
 
- /**
-  * Exchanges user credentials for access and refresh tokens.
-  * @param req login request with username/password
-  * @return Optional of AuthResDto with token info
-  */
- public Optional<AuthResDto> getToken(LoginReqDto req) {
-     try {
-         String tokenUrl = String.format("%s/realms/%s/protocol/openid-connect/token", serverUrl, realm);
+		// Make API call to create the user
+		var response = keycloak.realm(realm).users().create(user);
+		int status = 201;
 
-         HttpHeaders headers = new HttpHeaders();
-         headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+		if (status == 201) {
+			return true;
+		} else if (status == 409) {
+			throw new UserAlreadyExistsException(); // your custom exception
+		} else {
+			throw new UserCreationException("Unexpected error during user creation: " + status);
+		}
 
-         // Compose form URL encoded body
-         String body = "grant_type=password" +
-                 "&client_id=" + clientId +
-                 "&client_secret=" + clientSecret +
-                 "&username=" + req.getUsername() +
-                 "&password=" + req.getPassword();
+	}
 
-         HttpEntity<String> entity = new HttpEntity<>(body, headers);
-         RestTemplate restTemplate = new RestTemplate();
+	/**
+	 * Exchanges user credentials for access and refresh tokens.
+	 * 
+	 * @param req login request with username/password
+	 * @return Optional of AuthResDto with token info
+	 */
+	public Optional<AuthResDto> getToken(LoginReqDto req) {
+		try {
+			String tokenUrl = String.format("%s/realms/%s/protocol/openid-connect/token", serverUrl, realm);
 
-         // Make POST request to token endpoint
-         ResponseEntity<String> response = restTemplate.exchange(tokenUrl, HttpMethod.POST, entity, String.class);
+			HttpHeaders headers = new HttpHeaders();
+			headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
 
-         if (response.getStatusCode().is2xxSuccessful()) {
-             // Parse token response
-             TokenResponse token = mapper.readValue(response.getBody(), TokenResponse.class);
+			// Compose form URL encoded body
+			String body = 
+					"grant_type=password" + 
+					"&client_id=" + clientId + 
+					"&client_secret=" + clientSecret + 
+					"&username=" + req.getUsername() + 
+					"&password=" + req.getPassword();
 
-             return Optional.of(AuthResDto.builder()
-                     .id("N/A")  // You can replace this with actual user ID via Keycloak lookup if needed
-                     .username(req.getUsername())
-                     .accessToken(token.accessToken)
-                     .refreshToken(token.refreshToken)
-                     .roles(List.of())  // Token roles can be extracted later
-                     .message("Login successful")
-                     .build());
-         }
-     } catch (Exception e) {
-         log.error("Failed to fetch token from Keycloak", e);
-     }
-     return Optional.empty();
- }
+			HttpEntity<String> entity = new HttpEntity<>(body, headers);
+			RestTemplate restTemplate = new RestTemplate();
 
- /**
-  * Helper class for parsing token JSON
-  */
- @JsonIgnoreProperties(ignoreUnknown = true)
- private static class TokenResponse {
-     @JsonAlias("access_token")
-     public String accessToken;
+			// Make POST request to token endpoint
+			ResponseEntity<String> response = restTemplate.exchange(tokenUrl, HttpMethod.POST, entity, String.class);
 
-     @JsonAlias("refresh_token")
-     public String refreshToken;
- }
+			log.info("tokenUrl : " + tokenUrl);
+			log.info("body : " + body);
+
+			if (response.getStatusCode().is2xxSuccessful()) {
+				// Parse token response
+				TokenResponse token = mapper.readValue(response.getBody(), TokenResponse.class);
+
+				AuthResDto authResDto = AuthResDto.builder()
+						.id("N/A") // You can replace this with actual user ID via key-cloak lookup if needed
+						.username(req.getUsername())
+						.accessToken(token.accessToken)
+						.refreshToken(token.refreshToken)
+						.roles(List.of()) // Token roles can be extracted later
+						.message("Login successful")
+						.build(); 
+
+				return Optional.of(authResDto);
+				
+			}
+		} catch (Exception e) {
+			log.error("Failed to fetch token from Keycloak", e);
+		}
+		
+		return Optional.empty();
+	}
+
+	/**
+	 * Helper class for parsing token JSON
+	 */
+	@JsonIgnoreProperties(ignoreUnknown = true)
+	private static class TokenResponse {
+		@JsonAlias("access_token")
+		public String accessToken;
+
+		@JsonAlias("refresh_token")
+		public String refreshToken;
+	}
 }

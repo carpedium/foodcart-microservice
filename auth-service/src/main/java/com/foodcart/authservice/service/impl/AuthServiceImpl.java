@@ -26,9 +26,7 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public AuthResDto register(RegisterReqDto req) {
         boolean created = keycloakUtil.createUser(req);
-        if (!created) {
-            throw new UserAlreadyExistsException();
-        }
+      
         // Auto login after registration (optional)
         return login(new LoginReqDto(req.getUsername(), req.getPassword()));
     }

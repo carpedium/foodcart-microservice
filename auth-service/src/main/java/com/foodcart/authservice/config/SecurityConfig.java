@@ -14,7 +14,7 @@ import org.springframework.security.web.SecurityFilterChain;
 
 /**
  * Configures Spring Security for:
- * - Stateless sessions
+ * - State less sessions
  * - OAuth2 JWT resource server
  * - Role extraction from JWT
  */
@@ -30,22 +30,38 @@ public class SecurityConfig {
      */
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        http
-            .csrf(csrf -> csrf.disable())
-            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/auth/register", "/auth/login", "/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**").permitAll()
-                .anyRequest().authenticated()
+        
+    	http
+    	
+        // Disable CSRF since we use token-based (not cookie) authentication
+    	.csrf(csrf -> csrf.disable())
+        
+        // No HTTP sessions created or used (stateless REST API)
+    	.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+        
+        // Define access rules for different endpoints
+    	.authorizeHttpRequests(auth -> auth
+        
+                // Allow unauthenticated access to auth endpoints and Swagger UI
+    			.requestMatchers("/auth/register", "/auth/login", "/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**").permitAll()
+                
+                // Require authentication for all other requests
+    			.anyRequest().authenticated()
             )
-            .oauth2ResourceServer(oauth2 -> oauth2
-                .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter()))
+            
+        // Enable OAuth2 resource server with JWT token support
+    	.oauth2ResourceServer(oauth2 -> oauth2
+        
+                // Use custom converter to extract Keycloak roles from token
+    			.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter()))
             );
 
         return http.build();
     }
 
     /**
-     * Connects custom JwtAuthConverter to Spring's JWT auth flow
+     * Links custom JwtAuthConverter to Spring Security’s JWT converter
+     * - Converts Key-cloak "realm_access.roles" → GrantedAuthorities
      */
     @Bean
     public JwtAuthenticationConverter jwtAuthenticationConverter() {
